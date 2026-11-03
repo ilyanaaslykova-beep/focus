@@ -247,7 +247,7 @@ const mode=()=>S.modes.find(m=>m.id===S.cur)||S.modes[0];
 const dayKey=ts=>{const d=new Date(ts);return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()};
 
 /* ---------- Звук ---------- */
-let AC=null,noiseSrc=null,noiseGain=null,curNoise='off';
+let AC=null,noiseSrc=null,noiseGain=null,curNoise='off',noiseWanted=null;
 function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC}
 function makeNoise(type){
   const a=ac(); if(!a)return null;
@@ -350,7 +350,7 @@ function start(){
   if(T.phase!=='break')T.phase=S.len===0?'free':'focus';
   T.state='run';T.startAt=Date.now();T.elapsed=0;T.lastRemind=0;T.focusStart=Date.now();
   if(T.phase!=='free')T.endAt=Date.now()+(T.phase==='break'?S.set.brk:S.len)*60000;
-  if(T.phase!=='break'){lockWake(true);if(S.set.noiseAuto&&curNoise==='off')setNoise(S.set.noise||'brown')}
+  if(T.phase!=='break'){lockWake(true);if(curNoise==='off'){if(noiseWanted)setNoise(noiseWanted);else if(S.set.noiseAuto)setNoise(S.set.noise||'brown')}noiseWanted=null}
   render();
 }
 function focusedMinutes(){
@@ -361,7 +361,7 @@ function stop(){
   if(T.phase!=='break'){const min=focusedMinutes();if(min>=1)logSession(min,false);else toast('Меньше минуты, не засчитано')}
   reset();
 }
-function reset(){T.noiseWas=null;if(curNoise!=='off')setNoise('off');T.state='idle';T.phase=S.len===0?'free':'focus';lockWake(false);render()}
+function reset(){T.noiseWas=null;if(curNoise!=='off'){noiseWanted=curNoise;setNoise('off')}T.state='idle';T.phase=S.len===0?'free':'focus';lockWake(false);render()}
 function finishPhase(){
   if(T.phase==='break'){
     if(curNoise!=='off')setNoise('off');
@@ -371,7 +371,7 @@ function finishPhase(){
     return;
   }
   logSession(S.len,true);
-  if(curNoise!=='off')setNoise('off');
+  if(curNoise!=='off'){noiseWanted=curNoise;setNoise('off')}
   T.state='idle';lockWake(false);
   alertUser('Блок готов: +'+(S.len+10)+' очков. Отдохни '+S.set.brk+' минут.');
   showBanner('Блок готов. Отдохни '+S.set.brk+' мин: встань, вода, окно. Телефон не бери.',[
@@ -513,7 +513,7 @@ $('skipTrans').onclick=()=>$('transition').hidden=true;
 $('clearGoals').onclick=()=>{mode().goals.forEach(g=>{if(g.d){g.t='';g.d=0;g.a=0}});save();renderGoals()};
 $('focusOnly').onclick=()=>{const on=document.body.classList.toggle('focusonly');$('focusOnly').textContent=on?'Показать всё':'Только таймер';
   try{if(on&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});else if(!on&&document.fullscreenElement)document.exitFullscreen().catch(()=>{})}catch(e){}};
-document.querySelectorAll('#noise button').forEach(b=>b.onclick=()=>setNoise(b.dataset.n));
+document.querySelectorAll('#noise button').forEach(b=>b.onclick=()=>{noiseWanted=null;setNoise(b.dataset.n)});
 $('vol').value=S.set.vol;$('vol').oninput=e=>{S.set.vol=+e.target.value;save();if(noiseGain&&AC)noiseGain.gain.setTargetAtTime(vol(),AC.currentTime,.1)};
 $('noiseAuto').checked=S.set.noiseAuto;$('noiseAuto').onchange=e=>{S.set.noiseAuto=e.target.checked;save()};
 $('parkForm').onsubmit=e=>{e.preventDefault();const v=$('parkIn').value.trim();if(!v)return;S.park.unshift({t:v,ts:Date.now()});S.parkTotal++;S.points+=1;$('parkIn').value='';save();renderPark();checkAch();updateHeader();toast('Записала. Возвращайся к фокусу')};
