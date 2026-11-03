@@ -335,10 +335,12 @@ function start(){
   ac();
   if(T.state==='run'){ // пауза
     if(T.phase==='free'){T.elapsed+=(Date.now()-T.startAt)/1000}else T.left=(T.endAt-Date.now())/1000;
+    T.noiseWas=curNoise;if(curNoise!=='off')setNoise('off');
     T.state='pause';lockWake(false);render();return;
   }
   if(T.state==='pause'){
     if(T.phase==='free')T.startAt=Date.now();else T.endAt=Date.now()+T.left*1000;
+    if(T.noiseWas&&T.noiseWas!=='off')setNoise(T.noiseWas);T.noiseWas=null;
     T.state='run';lockWake(true);render();return;
   }
   $('banner').hidden=true;$('transition').hidden=true;
@@ -356,15 +358,17 @@ function stop(){
   if(T.phase!=='break'){const min=focusedMinutes();if(min>=1)logSession(min,false);else toast('Меньше минуты, не засчитано')}
   reset();
 }
-function reset(){T.state='idle';T.phase=S.len===0?'free':'focus';lockWake(false);render()}
+function reset(){T.noiseWas=null;if(curNoise!=='off')setNoise('off');T.state='idle';T.phase=S.len===0?'free':'focus';lockWake(false);render()}
 function finishPhase(){
   if(T.phase==='break'){
+    if(curNoise!=='off')setNoise('off');
     S.breaks=(S.breaks||0)+1;save();checkAch();
     T.state='idle';T.phase=S.len===0?'free':'focus';lockWake(false);render();
     alertUser('Перерыв окончен. Выбери режим и жми Старт.');showBanner('Перерыв окончен. Какой режим дальше?',[['Старт',()=>start()]]);
     return;
   }
   logSession(S.len,true);
+  if(curNoise!=='off')setNoise('off');
   T.state='idle';lockWake(false);
   alertUser('Блок готов: +'+(S.len+10)+' очков. Отдохни '+S.set.brk+' минут.');
   showBanner('Блок готов. Отдохни '+S.set.brk+' мин: встань, вода, окно. Телефон не бери.',[
